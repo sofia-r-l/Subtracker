@@ -1,0 +1,20 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Note: Some connectors do not support enums — use string fields instead
+
+model Subscription {
+  id           Int       @id @default(autoincrement())
+  name         String
+  price        Float
+  currency     String
+  frequency    String
+  payment_date DateTime
+  created_at   DateTime  @default(now())
+}

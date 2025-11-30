@@ -68,7 +68,8 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
-const EXCHANGE_RATE = 26;
+// read exchange rate from Vite env (fallback 26)
+const EXCHANGE_RATE = Number((import.meta.env.VITE_EXCHANGE_RATE as string) || 26);
 
 const monthlyEquivalent = computed(() => {
   let monthly = props.subscription.price;

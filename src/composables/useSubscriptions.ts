@@ -6,8 +6,8 @@ const subscriptions = ref<Subscription[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
 
-// Tasa de cambio fija
-const EXCHANGE_RATE = 26;
+// Exchange rate comes from env (Vite) or defaults to 26 HNL / 1 USD
+const EXCHANGE_RATE = Number((import.meta.env.VITE_EXCHANGE_RATE as string) || 26);
 
 export const useSubscriptions = () => {
   // Cálculos computados
@@ -29,44 +29,22 @@ export const useSubscriptions = () => {
     }, 0);
   });
 
-  // Para esta prueba, usaremos datos mock
-  const fetchSubscriptions = async () => {
+    // Use a backend API for CRUD (default to localhost)
+    const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:4000/api';
+
+    const fetchSubscriptions = async () => {
     loading.value = true;
     error.value = null;
     try {
-      // Simular llamada a API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Datos de ejemplo
-      subscriptions.value = [
-        {
-          id: 1,
-          name: 'Netflix',
-          price: 12.99,
-          currency: 'USD',
-          frequency: 'monthly',
-          payment_date: '2024-01-15',
-          created_at: '2024-01-01'
-        },
-        {
-          id: 2,
-          name: 'Gimnasio',
-          price: 500,
-          currency: 'HNL',
-          frequency: 'monthly',
-          payment_date: '2024-01-10',
-          created_at: '2024-01-01'
-        },
-        {
-          id: 3,
-          name: 'Spotify Premium',
-          price: 9.99,
-          currency: 'USD',
-          frequency: 'monthly',
-          payment_date: '2024-01-20',
-          created_at: '2024-01-01'
-        }
-      ];
+      const res = await fetch(`${API_BASE}/subscriptions`);
+      if (!res.ok) throw new Error(`Error fetching subscriptions: ${res.statusText}`);
+      const data = await res.json();
+      // Ensure date strings
+      subscriptions.value = data.map((s: any) => ({
+        ...s,
+        payment_date: s.payment_date ? new Date(s.payment_date).toISOString().split('T')[0] : s.payment_date,
+        created_at: s.created_at ? new Date(s.created_at).toISOString() : s.created_at,
+      }));
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred';
     } finally {
@@ -78,17 +56,18 @@ export const useSubscriptions = () => {
     loading.value = true;
     error.value = null;
     try {
-      // Simular creación
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const newSubscription: Subscription = {
-        id: Date.now(),
-        ...subscription,
-        created_at: new Date().toISOString()
-      };
-      
-      subscriptions.value.unshift(newSubscription);
-      return newSubscription;
+      const res = await fetch(`${API_BASE}/subscriptions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(subscription),
+      });
+      if (!res.ok) throw new Error(`Create failed: ${res.statusText}`);
+      const created = await res.json();
+      subscriptions.value.unshift({
+        ...created,
+        payment_date: created.payment_date ? new Date(created.payment_date).toISOString().split('T')[0] : created.payment_date,
+      });
+      return created as Subscription;
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred';
       throw err;
@@ -101,15 +80,21 @@ export const useSubscriptions = () => {
     loading.value = true;
     error.value = null;
     try {
-      // Simular actualización
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      const res = await fetch(`${API_BASE}/subscriptions/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(subscription),
+      });
+      if (!res.ok) throw new Error(`Update failed: ${res.statusText}`);
+      const updated = await res.json();
       const index = subscriptions.value.findIndex(sub => sub.id === id);
       if (index !== -1) {
-        subscriptions.value[index] = { ...subscriptions.value[index], ...subscription };
+        subscriptions.value[index] = { ...subscriptions.value[index], ...updated };
         return subscriptions.value[index];
       }
-      throw new Error('Subscription not found');
+      // If not present locally, add it
+      subscriptions.value.unshift(updated);
+      return updated;
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred';
       throw err;
@@ -122,9 +107,8 @@ export const useSubscriptions = () => {
     loading.value = true;
     error.value = null;
     try {
-      // Simular eliminación
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      const res = await fetch(`${API_BASE}/subscriptions/${id}`, { method: 'DELETE' });
+      if (!res.ok && res.status !== 204) throw new Error(`Delete failed: ${res.statusText}`);
       subscriptions.value = subscriptions.value.filter(sub => sub.id !== id);
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred';
